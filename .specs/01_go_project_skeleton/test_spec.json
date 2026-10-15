@@ -1,0 +1,454 @@
+{
+  "$schema": "https://agent-fox.dev/schemas/test_spec.v2.json",
+  "spec_id": "01",
+  "spec_name": "go_project_skeleton",
+  "schema_version": 2,
+  "tests": [
+    {
+      "id": "TS-01-1",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-1.1",
+        "01-REQ-9.1"
+      ],
+      "title": "go.mod declares the module path and Go 1.22 with no require entries",
+      "given": [
+        "the repository root"
+      ],
+      "when": "go.mod is read and `go list -m` is run",
+      "then": [
+        "the module path is github.com/agent-fox-dev/forked-repo",
+        "the go directive is 1.22",
+        "no require line exists"
+      ],
+      "pseudocode": "assert 'module github.com/agent-fox-dev/forked-repo' in go.mod; assert 'go 1.22' in go.mod; assert 'require' not in go.mod"
+    },
+    {
+      "id": "TS-01-2",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-2.1",
+        "01-REQ-9.2"
+      ],
+      "title": "cmd/ and internal/ hold empty .gitkeep files and no other top-level directory is added",
+      "given": [
+        "the repository root"
+      ],
+      "when": "the tree and git ls-files are inspected",
+      "then": [
+        "cmd/.gitkeep and internal/.gitkeep exist, are empty and are tracked",
+        "top-level directories are only cmd, internal, docs (plus .git, .specs)",
+        "LICENSE is unchanged versus git HEAD"
+      ],
+      "pseudocode": "assert size('cmd/.gitkeep')==0; assert size('internal/.gitkeep')==0; assert git diff --quiet LICENSE"
+    },
+    {
+      "id": "TS-01-3",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-2.2",
+        "01-REQ-4.2"
+      ],
+      "title": "git check-ignore reports none of the required paths as ignored",
+      "given": [
+        "the repository .gitignore"
+      ],
+      "when": "git check-ignore is run for cmd/.gitkeep, internal/.gitkeep, Makefile, docs/generated/.gitkeep and docs/generated/root.txt",
+      "then": [
+        "each invocation exits 1 (not ignored)"
+      ],
+      "pseudocode": "for p in paths: assert run('git check-ignore -q', p).status == 1"
+    },
+    {
+      "id": "TS-01-4",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-4.1"
+      ],
+      "title": "bin/ is ignored by git",
+      "given": [
+        "the repository .gitignore"
+      ],
+      "when": "git check-ignore bin/x is run",
+      "then": [
+        "it exits 0 and prints bin/x"
+      ],
+      "pseudocode": "assert run('git check-ignore bin/x').status == 0"
+    },
+    {
+      "id": "TS-01-5",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-3.1"
+      ],
+      "title": "All eight targets are declared .PHONY and help is the default goal",
+      "given": [
+        "the Makefile"
+      ],
+      "when": "`make -p -n` output and the .PHONY line are inspected",
+      "then": [
+        "help, build, test, fmt, vet, check, doc, clean are all in .PHONY",
+        "the default goal is help"
+      ],
+      "pseudocode": "assert set(targets) <= phony_targets; assert default_goal == 'help'"
+    },
+    {
+      "id": "TS-01-6",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-3.2"
+      ],
+      "title": "make and make help list every target with a description",
+      "given": [
+        "the skeleton"
+      ],
+      "when": "`make` and `make help` are run",
+      "then": [
+        "both exit 0",
+        "output has a line for each of help, build, test, fmt, vet, check, doc, clean"
+      ],
+      "pseudocode": "for cmd in ['make','make help']: r=run(cmd); assert r.status==0; for t in targets: assert line_with(t, r.out)"
+    },
+    {
+      "id": "TS-01-7",
+      "kind": "integration",
+      "verifies": [
+        "01-REQ-3.3"
+      ],
+      "title": "make build/test/vet exit status mirrors the underlying go command and build writes binaries to bin/",
+      "given": [
+        "a temp copy of the skeleton with a main package under cmd/app",
+        "then a copy with a compile error in that package"
+      ],
+      "when": "make build, make test and make vet are run in each copy",
+      "then": [
+        "in the valid copy all exit 0 and bin/app exists after build",
+        "in the broken copy make build exits non-zero like go build"
+      ],
+      "pseudocode": "assert make('build').status == 0; assert exists('bin/app'); break(); assert make('build').status != 0"
+    },
+    {
+      "id": "TS-01-8",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-3.4"
+      ],
+      "title": "make fmt rewrites an unformatted Go file",
+      "given": [
+        "a temp copy with an unformatted valid .go file"
+      ],
+      "when": "make fmt is run",
+      "then": [
+        "it exits 0",
+        "`gofmt -l .` prints nothing afterwards"
+      ],
+      "pseudocode": "assert make('fmt').status==0; assert run('gofmt -l .').out==''"
+    },
+    {
+      "id": "TS-01-9",
+      "kind": "integration",
+      "verifies": [
+        "01-REQ-3.5"
+      ],
+      "title": "make check runs fmt, vet, build, test in order and exits 0 on success",
+      "given": [
+        "the skeleton"
+      ],
+      "when": "`make check` is run",
+      "then": [
+        "exit status 0",
+        "the commands appear in order fmt, vet, build, test (via make -n)"
+      ],
+      "pseudocode": "order = make('-n check'); assert idx(fmt)<idx(vet)<idx(build)<idx(test); assert make('check').status==0"
+    },
+    {
+      "id": "TS-01-10",
+      "kind": "integration",
+      "verifies": [
+        "01-REQ-3.6"
+      ],
+      "title": "A failing vet step stops make check before build and test",
+      "given": [
+        "a temp copy with a Go file that go vet rejects (e.g. Printf format mismatch)"
+      ],
+      "when": "make check is run",
+      "then": [
+        "make exits non-zero",
+        "no output from the go build or go test steps, and bin/ not created"
+      ],
+      "pseudocode": "r=make('check'); assert r.status!=0; assert 'ok' not in r.out; assert not exists('bin')"
+    },
+    {
+      "id": "TS-01-11",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-3.7"
+      ],
+      "title": "make clean removes only bin/ and succeeds when it is absent",
+      "given": [
+        "a temp copy with bin/x, docs/generated/.gitkeep and cmd/.gitkeep"
+      ],
+      "when": "make clean is run twice",
+      "then": [
+        "both runs exit 0",
+        "bin/ is gone",
+        "all other files remain"
+      ],
+      "pseudocode": "assert make('clean').status==0; assert not exists('bin'); assert make('clean').status==0; assert snapshot_minus_bin == before"
+    },
+    {
+      "id": "TS-01-12",
+      "kind": "integration",
+      "verifies": [
+        "01-REQ-5.1",
+        "01-REQ-5.3"
+      ],
+      "title": "All go-based targets exit 0 on the empty tree and gofmt -l is silent",
+      "given": [
+        "the skeleton with no .go files"
+      ],
+      "when": "make build, test, vet, fmt, check and doc are each run, then gofmt -l .",
+      "then": [
+        "each exits 0",
+        "gofmt -l prints nothing"
+      ],
+      "pseudocode": "for t in [...]: assert make(t).status==0; assert run('gofmt -l .').out==''"
+    },
+    {
+      "id": "TS-01-13",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-5.2"
+      ],
+      "title": "make doc on the empty tree leaves docs/generated/ with only .gitkeep",
+      "given": [
+        "the skeleton with docs/generated/ absent"
+      ],
+      "when": "make doc is run",
+      "then": [
+        "docs/generated/ exists",
+        "its only entry is .gitkeep"
+      ],
+      "pseudocode": "make('doc'); assert listdir('docs/generated')==['.gitkeep']"
+    },
+    {
+      "id": "TS-01-14",
+      "kind": "integration",
+      "verifies": [
+        "01-REQ-6.1"
+      ],
+      "title": "make doc writes one file per public package and skips internal and examples packages",
+      "given": [
+        "a temp module with packages root, util, internal/x, a/internal, examples/e and a/examples"
+      ],
+      "when": "make doc is run",
+      "then": [
+        "exit 0",
+        "files exist only for the root and util packages"
+      ],
+      "pseudocode": "assert make('doc').status==0; assert sorted(listdir)==['.gitkeep','root.txt','util.txt']; assert content(util.txt)==go_doc_all(util)"
+    },
+    {
+      "id": "TS-01-15",
+      "kind": "property",
+      "verifies": [
+        "01-REQ-6.2"
+      ],
+      "title": "Output file name is the module-relative import path with / replaced by _ plus .txt",
+      "given": [
+        "a temp module with generated public package trees"
+      ],
+      "when": "for any public package path of one or more non-internal, non-examples segments (or the module root)",
+      "then": [
+        "its doc file is named segments joined by _ plus .txt, or root.txt for the root"
+      ],
+      "pseudocode": "for pkg in gen_pkgs(): make('doc'); assert exists('docs/generated/' + ('root' if pkg=='' else pkg.replace('/','_')) + '.txt')"
+    },
+    {
+      "id": "TS-01-16",
+      "kind": "integration",
+      "verifies": [
+        "01-REQ-6.3"
+      ],
+      "title": "Stale generated files are deleted on regeneration",
+      "given": [
+        "a temp module where make doc has generated util.txt, then package util is removed and a stale old.txt is added"
+      ],
+      "when": "make doc is run again",
+      "then": [
+        "util.txt and old.txt are gone",
+        "docs/generated/.gitkeep remains"
+      ],
+      "pseudocode": "rm('util'); make('doc'); assert listdir=='.gitkeep' only"
+    },
+    {
+      "id": "TS-01-17",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-6.4"
+      ],
+      "title": "make doc exits non-zero when go doc fails for a public package",
+      "given": [
+        "a temp module with a public package and GO set to a wrapper that fails on `doc` but delegates otherwise"
+      ],
+      "when": "make doc is run",
+      "then": [
+        "make exits with non-zero status"
+      ],
+      "pseudocode": "r=make('doc GO=./failing_go'); assert r.status != 0"
+    },
+    {
+      "id": "TS-01-18",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-6.5",
+        "01-REQ-7.1"
+      ],
+      "title": "The Makefile uses no GNU-only or bash-only constructs and runs under make 3.81 and GNU make",
+      "given": [
+        "the Makefile"
+      ],
+      "when": "it is scanned for .ONESHELL, $(file, grouped targets (&:), [[ ]], process substitution, arrays, and run under GNU make and (if available) make 3.81 with `make help` and `make check`",
+      "then": [
+        "no such construct is found",
+        "the runs succeed",
+        "recipes invoke only go and POSIX tools"
+      ],
+      "pseudocode": "assert not regex('\\\\.ONESHELL|\\\\$\\\\(file|&:|\\\\[\\\\[|<\\\\(', Makefile); assert make('help').status==0"
+    },
+    {
+      "id": "TS-01-19",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-7.2"
+      ],
+      "title": "Every go invocation uses the GO variable with default go",
+      "given": [
+        "a recording wrapper script as GO"
+      ],
+      "when": "make check and make doc are run with GO=<wrapper> and then with the variable passed via environment",
+      "then": [
+        "every recorded go call came from the wrapper",
+        "with no GO set, `make -n` shows `go`"
+      ],
+      "pseudocode": "make('check doc GO=wrapper'); assert log nonempty; assert no direct 'go ' call outside wrapper"
+    },
+    {
+      "id": "TS-01-20",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-8.1",
+        "01-REQ-8.2",
+        "01-REQ-8.3",
+        "01-REQ-8.4"
+      ],
+      "title": "The four docs files exist with their required statements",
+      "given": [
+        "the repository root"
+      ],
+      "when": "docs/architecture.md, api.md, cli.md and configuration.md are read",
+      "then": [
+        "architecture.md mentions cmd/, internal/, docs/generated/ and the module path",
+        "api.md states no REST or public Go API yet",
+        "cli.md states no CLI yet and names all eight make targets",
+        "configuration.md states no config keys apart from the GO variable"
+      ],
+      "pseudocode": "assert contains(architecture, module_path); assert contains(cli, each target)"
+    },
+    {
+      "id": "TS-01-21",
+      "kind": "unit",
+      "verifies": [
+        "01-REQ-8.5"
+      ],
+      "title": "README keeps its title and description and gains layout, Go version and targets",
+      "given": [
+        "README.md"
+      ],
+      "when": "it is read",
+      "then": [
+        "it still starts with `# upstream-repo` and the original description line",
+        "it mentions cmd/, internal/, Go 1.22 and the make targets"
+      ],
+      "pseudocode": "assert lines[0]=='# upstream-repo'; assert '1.22' in readme"
+    },
+    {
+      "id": "TS-01-22",
+      "kind": "smoke",
+      "verifies": [
+        "01-PATH-1",
+        "01-REQ-5.1"
+      ],
+      "title": "A fresh checkout passes make check with only the Go toolchain",
+      "given": [
+        "a clean clone of the repository with only Go and POSIX tools on PATH"
+      ],
+      "when": "make check is run",
+      "then": [
+        "exit status 0",
+        "no files are created outside the tree",
+        "git status shows no untracked build output"
+      ],
+      "pseudocode": "clone(); assert make('check').status==0; assert git_status_clean_or_only_expected",
+      "real_components": [
+        "Makefile",
+        "Go toolchain",
+        "go.mod",
+        "git"
+      ]
+    },
+    {
+      "id": "TS-01-23",
+      "kind": "smoke",
+      "verifies": [
+        "01-PATH-2",
+        "01-REQ-6.1"
+      ],
+      "title": "make doc regenerates docs/generated/ end to end",
+      "given": [
+        "a clone with a stale docs/generated/old.txt and a public package added"
+      ],
+      "when": "make doc is run",
+      "then": [
+        "exit 0",
+        "old.txt is deleted",
+        "the package's .txt exists with go doc -all output",
+        "docs/generated/.gitkeep is present"
+      ],
+      "pseudocode": "touch old.txt; make('doc'); assert not exists(old.txt); assert exists('docs/generated/pkg.txt')",
+      "real_components": [
+        "Makefile",
+        "Go toolchain",
+        "go list",
+        "go doc",
+        "POSIX shell"
+      ]
+    },
+    {
+      "id": "TS-01-24",
+      "kind": "smoke",
+      "verifies": [
+        "01-PATH-3",
+        "01-REQ-4.1",
+        "01-REQ-3.7"
+      ],
+      "title": "A developer builds, sees bin/ ignored and cleans",
+      "given": [
+        "a clone with a main package under cmd/app"
+      ],
+      "when": "make build, git status, then make clean (twice) are run",
+      "then": [
+        "bin/app exists after build",
+        "git status lists nothing under bin/",
+        "clean exits 0 and removes bin/, also when bin/ is absent"
+      ],
+      "pseudocode": "make('build'); assert 'bin/' not in git_status(); make('clean'); assert make('clean').status==0",
+      "real_components": [
+        "Makefile",
+        "Go toolchain",
+        "git",
+        ".gitignore"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,179 @@
+{
+  "$schema": "https://agent-fox.dev/schemas/tasks.v2.json",
+  "spec_id": "01",
+  "spec_name": "go_project_skeleton",
+  "schema_version": 2,
+  "test_commands": {
+    "all_tests": "go test ./... -count=1",
+    "linter": "go vet ./...",
+    "spec_tests": "go test ./internal/skeleton/... -count=1"
+  },
+  "dependencies": [],
+  "tasks": [
+    {
+      "id": 1,
+      "kind": "implement",
+      "title": "Create go.mod, cmd/ and internal/ placeholders, and .gitignore entries",
+      "criteria": [
+        "01-REQ-1",
+        "01-REQ-2",
+        "01-REQ-4",
+        "01-REQ-9"
+      ],
+      "tests": [
+        "TS-01-1",
+        "TS-01-2",
+        "TS-01-3",
+        "TS-01-4"
+      ],
+      "steps": [
+        "Write TS-01-1..4 as Go tests in internal/skeleton/skeleton_test.go (test-only package; shell out to git and read files; resolve the repo root relative to the test file) and confirm they fail",
+        "Create go.mod with `module github.com/agent-fox-dev/forked-repo` and `go 1.22`, no require block",
+        "Create empty cmd/.gitkeep and internal/.gitkeep",
+        "Check .gitignore for an existing bin/ rule; add `bin/` and make sure nothing ignores cmd/, internal/, the .gitkeep files, Makefile or docs/generated/ (add negations if the Python template does)",
+        "Leave LICENSE untouched and add no other top-level directory"
+      ],
+      "touches": [
+        "go.mod",
+        "cmd/.gitkeep",
+        "internal/.gitkeep",
+        ".gitignore",
+        "internal/skeleton/skeleton_test.go"
+      ],
+      "state": "pending"
+    },
+    {
+      "id": 2,
+      "kind": "implement",
+      "title": "Write the portable Makefile with help, build, test, fmt, vet, check, clean",
+      "criteria": [
+        "01-REQ-3",
+        "01-REQ-7",
+        "01-REQ-5.1",
+        "01-REQ-5.3"
+      ],
+      "tests": [
+        "TS-01-5",
+        "TS-01-6",
+        "TS-01-7",
+        "TS-01-8",
+        "TS-01-9",
+        "TS-01-10",
+        "TS-01-11",
+        "TS-01-18"
+      ],
+      "steps": [
+        "Write TS-01-5..11 and TS-01-18 as Go tests (use temp copies of the Makefile with generated cmd/app packages) and confirm they fail",
+        "Create Makefile with `GO ?= go`, `.PHONY` for all eight targets, and `help` as first target printing each target with a one-line description (grep/sed on `##` comments or plain echo; POSIX only)",
+        "build: `$(GO) build ./...` and, when cmd/ has main packages, `$(GO) build -o bin/ ./cmd/...`; must succeed on the empty tree",
+        "test, vet run `$(GO) test ./...` and `$(GO) vet ./...`; fmt runs `$(GO) fmt ./...`",
+        "check: `$(MAKE) fmt vet build test` style sequential recipe (each step as its own command so failure stops later steps; do not rely on prerequisite ordering with -j)",
+        "clean: `rm -rf bin`",
+        "Avoid .ONESHELL, $(file, &:, [[ ]], bashisms; every go call uses $(GO)"
+      ],
+      "touches": [
+        "Makefile",
+        "internal/skeleton/skeleton_test.go"
+      ],
+      "depends_on": [
+        1
+      ],
+      "state": "pending"
+    },
+    {
+      "id": 3,
+      "kind": "implement",
+      "title": "Implement make doc with per-package go doc -all output",
+      "criteria": [
+        "01-REQ-6",
+        "01-REQ-5.2"
+      ],
+      "tests": [
+        "TS-01-12",
+        "TS-01-13",
+        "TS-01-14",
+        "TS-01-15",
+        "TS-01-16",
+        "TS-01-17",
+        "TS-01-19"
+      ],
+      "steps": [
+        "Write TS-01-12..17 and TS-01-19 as Go tests and confirm they fail",
+        "Add `doc` recipe: rm stale docs/generated/* files (keep .gitkeep), mkdir -p docs/generated, touch docs/generated/.gitkeep",
+        "Enumerate packages via `$(GO) list ./...` (capture output first so failures propagate), filter out paths containing /internal/ or /examples/ or ending in /internal or /examples using case patterns",
+        "Name each file by stripping the module prefix, replacing / with _, appending .txt; module root is root.txt",
+        "Run `$(GO) doc -all <importpath> > file` and abort with non-zero status on failure",
+        "Use only POSIX tools"
+      ],
+      "touches": [
+        "Makefile",
+        "docs/generated/.gitkeep",
+        "internal/skeleton/skeleton_test.go"
+      ],
+      "depends_on": [
+        2
+      ],
+      "state": "pending"
+    },
+    {
+      "id": 4,
+      "kind": "implement",
+      "title": "Write the required documentation files",
+      "criteria": [
+        "01-REQ-8"
+      ],
+      "tests": [
+        "TS-01-20",
+        "TS-01-21"
+      ],
+      "steps": [
+        "Write TS-01-20 and TS-01-21 as Go tests (steering says not to test docs, but these are mandated by the test spec; keep them light) and confirm they fail",
+        "Create docs/architecture.md describing cmd/, internal/, docs/generated/ and the module path",
+        "Create docs/api.md with a one-line no REST/public Go API statement",
+        "Create docs/cli.md with a one-line no-CLI statement and the eight make targets",
+        "Create docs/configuration.md with a one-line none-yet statement mentioning the Makefile GO variable",
+        "Extend README.md keeping the title and description line, adding layout, Go 1.22 and make targets",
+        "Run make doc and make check"
+      ],
+      "touches": [
+        "docs/architecture.md",
+        "docs/api.md",
+        "docs/cli.md",
+        "docs/configuration.md",
+        "README.md",
+        "internal/skeleton/skeleton_test.go"
+      ],
+      "depends_on": [
+        3
+      ],
+      "state": "pending"
+    },
+    {
+      "id": 5,
+      "kind": "integration",
+      "title": "Verify skeleton paths end to end",
+      "tests": [
+        "TS-01-22",
+        "TS-01-23",
+        "TS-01-24"
+      ],
+      "steps": [
+        "Write TS-01-22..24 against a real clone/copy using the real Makefile, Go toolchain and git, and confirm they pass",
+        "Trace 01-PATH-1, 01-PATH-2 and 01-PATH-3 through the real Makefile; confirm each target invokes the next step and nothing is stubbed",
+        "Confirm the doc and clean targets' contracts are produced by the real Makefile recipes, not only tests",
+        "Grep Makefile, go.mod and docs for TODO, TBD and stub markers and remove any",
+        "Confirm gofmt -l . is clean and make check passes"
+      ],
+      "touches": [
+        "internal/skeleton/smoke_test.go"
+      ],
+      "depends_on": [
+        4
+      ],
+      "done_when": [
+        "`go test ./... -count=1` passes"
+      ],
+      "state": "pending"
+    }
+  ]
+}

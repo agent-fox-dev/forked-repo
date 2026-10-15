@@ -1,0 +1,341 @@
+{
+  "$schema": "https://agent-fox.dev/schemas/requirements.v2.json",
+  "spec_id": "01",
+  "spec_name": "go_project_skeleton",
+  "schema_version": 2,
+  "introduction": "The Go project skeleton gives the repository a buildable foundation: a go.mod at the root, tracked cmd/ and internal/ directories, a portable Makefile with developer targets, .gitignore handling for build output, and minimal documentation. It contains no application logic.",
+  "glossary": {
+    "empty tree": "A repository state in which no .go source files exist.",
+    "module path": "The Go module identifier declared in go.mod: github.com/agent-fox-dev/forked-repo.",
+    "placeholder": "An empty `.gitkeep` file that lets git track an otherwise empty directory.",
+    "public package": "A package reported by `go list ./...` whose import path contains no `/internal/` or `/examples/` segment and does not end in `/internal` or `/examples`.",
+    "skeleton": "The minimal repository layout (go.mod, cmd/, internal/, Makefile, minimal docs) with no Go source declarations."
+  },
+  "requirements": [
+    {
+      "id": "01-REQ-1",
+      "title": "Module file",
+      "rationale": "Go tooling needs a valid module declaration before any code can be added.",
+      "criteria": [
+        {
+          "id": "01-REQ-1.1",
+          "pattern": "ubiquitous",
+          "system": "repository root go.mod",
+          "action": "declare `module github.com/agent-fix-dev/forked-repo` replaced below"
+        }
+      ]
+    },
+    {
+      "id": "01-REQ-2",
+      "title": "Tracked directories",
+      "rationale": "Git does not track empty directories, so placeholders are needed for cmd/ and internal/ to exist in a clone.",
+      "criteria": [
+        {
+          "id": "01-REQ-2.1",
+          "pattern": "ubiquitous",
+          "system": "repository",
+          "action": "contain the directories `cmd/` and `internal/` at the root, each holding an empty-content placeholder file named `.gitkeep`"
+        },
+        {
+          "id": "01-REQ-2.2",
+          "pattern": "ubiquitous",
+          "system": ".gitignore",
+          "action": "leave `cmd/`, `internal/`, both `.gitkeep` placeholders, the Makefile and `docs/generated/` unignored, so that `git check-ignore` reports none of them as ignored"
+        }
+      ]
+    },
+    {
+      "id": "01-REQ-3",
+      "title": "Makefile targets",
+      "rationale": "Developers and the steering directives depend on a uniform set of make targets.",
+      "criteria": [
+        {
+          "id": "01-REQ-3.1",
+          "pattern": "ubiquitous",
+          "system": "Makefile",
+          "action": "declare the targets help, build, test, fmt, vet, check, doc and clean as `.PHONY`, with `help` as the default goal"
+        },
+        {
+          "id": "01-REQ-3.2",
+          "pattern": "event_driven",
+          "condition": "a developer runs `make` with no target or `make help`",
+          "system": "Makefile",
+          "action": "print every target name with a one-line description",
+          "contract": "exit status 0; the output contains a line for each of help, build, test, fmt, vet, check, doc and clean"
+        },
+        {
+          "id": "01-REQ-3.3",
+          "pattern": "event_driven",
+          "condition": "a developer runs `make build`, `make test` or `make vet`",
+          "system": "Makefile",
+          "action": "run `go build ./...`, `go test ./...` or `go vet ./...` respectively, with `build` writing binaries of `main` packages under `cmd/` to `bin/`",
+          "contract": "the make exit status equals the exit status of the underlying go command"
+        },
+        {
+          "id": "01-REQ-3.4",
+          "pattern": "event_driven",
+          "condition": "a developer runs `make fmt`",
+          "system": "Makefile",
+          "action": "rewrite Go sources in place using `gofmt -w` or `go fmt ./...`",
+          "contract": "exit status 0 when formatting succeeds"
+        },
+        {
+          "id": "01-REQ-3.5",
+          "pattern": "event_driven",
+          "condition": "a developer runs `make check`",
+          "system": "Makefile",
+          "action": "run fmt, vet, build and test in that order",
+          "contract": "exit status 0 only if all four steps succeed"
+        },
+        {
+          "id": "01-REQ-3.6",
+          "pattern": "unwanted",
+          "condition": "a step run by `make check` fails",
+          "system": "Makefile",
+          "action": "stop without running the later steps",
+          "contract": "make exits with a non-zero status and no later step produces output"
+        },
+        {
+          "id": "01-REQ-3.7",
+          "pattern": "event_driven",
+          "condition": "a developer runs `make clean`",
+          "system": "Makefile",
+          "action": "remove `bin/` and nothing else, whether or not `bin/` exists",
+          "contract": "exit status 0 when `bin/` is absent and when it is present; no other file or directory is removed"
+        }
+      ]
+    },
+    {
+      "id": "01-REQ-4",
+      "title": "Build artefact ignoring",
+      "rationale": "Binaries written to bin/ must not be committed, while generated docs must stay tracked.",
+      "criteria": [
+        {
+          "id": "01-REQ-4.1",
+          "pattern": "ubiquitous",
+          "system": ".gitignore",
+          "action": "contain an entry that ignores `bin/`, so that `git check-ignore bin/x` reports the path as ignored"
+        },
+        {
+          "id": "01-REQ-4.2",
+          "pattern": "ubiquitous",
+          "system": ".gitignore",
+          "action": "not ignore `docs/generated/` or any file below it"
+        }
+      ]
+    },
+    {
+      "id": "01-REQ-5",
+      "title": "Empty-tree behaviour",
+      "rationale": "The skeleton has no Go sources, and make check must still pass on it.",
+      "criteria": [
+        {
+          "id": "01-REQ-5.1",
+          "pattern": "state_driven",
+          "condition": "the repository contains no Go source files",
+          "system": "Makefile",
+          "action": "complete `make build`, `make test`, `make vet`, `make fmt`, `make check` and `make doc` successfully, tolerating Go's \"matched no packages\" warning",
+          "contract": "each command exits with status 0"
+        },
+        {
+          "id": "01-REQ-5.2",
+          "pattern": "state_driven",
+          "condition": "the repository contains no Go source files",
+          "system": "make doc",
+          "action": "create `docs/generated/` containing a `.gitkeep` file and no package files",
+          "contract": "after the run, `docs/generated/` exists and its only entry is `.gitkeep`"
+        },
+        {
+          "id": "01-REQ-5.3",
+          "pattern": "ubiquitous",
+          "system": "repository",
+          "action": "contain no Go source file with declarations, so that `gofmt -l .` prints nothing"
+        }
+      ]
+    },
+    {
+      "id": "01-REQ-6",
+      "title": "Doc generation",
+      "rationale": "The steering requires one go doc -all text file per public package in docs/generated/.",
+      "criteria": [
+        {
+          "id": "01-REQ-6.1",
+          "pattern": "event_driven",
+          "condition": "a developer runs `make doc`",
+          "system": "make doc",
+          "action": "enumerate packages with `go list ./...`, drop each whose import path contains `/internal/` or `/examples/` or ends in `/internal` or `/examples`, and write the `go doc -all <importpath>` output of each remaining package to its own file under `docs/generated/`",
+          "contract": "exit status 0; exactly one file exists per public package"
+        },
+        {
+          "id": "01-REQ-6.2",
+          "pattern": "ubiquitous",
+          "system": "make doc",
+          "action": "for any public package, name its output file by taking the import path relative to the module, replacing each `/` with `_` and appending `.txt`, with the module root package named `root.txt`"
+        },
+        {
+          "id": "01-REQ-6.3",
+          "pattern": "event_driven",
+          "condition": "a developer runs `make doc` after a package has been removed or made non-public",
+          "system": "make doc",
+          "action": "delete the stale generated files from `docs/generated/` before regenerating",
+          "contract": "after the run, no file in `docs/generated/` other than `.gitkeep` corresponds to a package that is absent or non-public"
+        },
+        {
+          "id": "01-REQ-6.4",
+          "pattern": "unwanted",
+          "condition": "`go doc -all` fails for a public package",
+          "system": "make doc",
+          "action": "stop and report the failure",
+          "contract": "make exits with a non-zero status"
+        },
+        {
+          "id": "01-REQ-6.5",
+          "pattern": "ubiquitous",
+          "system": "make doc",
+          "action": "use only the Go toolchain and POSIX shell tools available on Linux and macOS"
+        }
+      ]
+    },
+    {
+      "id": "01-REQ-7",
+      "title": "Makefile portability",
+      "rationale": "The Makefile must run on Linux GNU make and the macOS system make 3.81 without extra tools.",
+      "criteria": [
+        {
+          "id": "01-REQ-7.1",
+          "pattern": "ubiquitous",
+          "system": "Makefile",
+          "action": "run under both GNU make and macOS make 3.81, using no GNU-only extensions (such as `.ONESHELL`, `$(file ...)` or grouped targets) and no bash-only syntax"
+        },
+        {
+          "id": "01-REQ-7.2",
+          "pattern": "optional",
+          "condition": "the developer passes `GO=<path>` on the make command line or in the environment",
+          "system": "Makefile",
+          "action": "invoke that Go binary for every go command, with `go` as the default value of `GO`",
+          "contract": "every go invocation made by any target uses the value of `GO`"
+        }
+      ]
+    },
+    {
+      "id": "01-REQ-8",
+      "title": "Required documentation",
+      "rationale": "The steering treats missing docs as regressions and prescribes the one-line none-yet form.",
+      "criteria": [
+        {
+          "id": "01-REQ-8.1",
+          "pattern": "ubiquitous",
+          "system": "docs/architecture.md",
+          "action": "describe `cmd/` as entry points, `internal/` as private packages, `docs/generated/` as generated reference, and state the module path `github.com/agent-fox-dev/forked-repo`"
+        },
+        {
+          "id": "01-REQ-8.2",
+          "pattern": "ubiquitous",
+          "system": "docs/api.md",
+          "action": "state in one line that there is no REST API or public Go API yet"
+        },
+        {
+          "id": "01-REQ-8.3",
+          "pattern": "ubiquitous",
+          "system": "docs/cli.md",
+          "action": "state in one line that there is no CLI yet, and list the Makefile targets as developer commands"
+        },
+        {
+          "id": "01-REQ-8.4",
+          "pattern": "ubiquitous",
+          "system": "docs/configuration.md",
+          "action": "state in one line that there are no config keys or environment variables yet other than the Makefile `GO` variable"
+        },
+        {
+          "id": "01-REQ-8.5",
+          "pattern": "ubiquitous",
+          "system": "README.md",
+          "action": "keep its existing title and description line and add a short section giving the directory layout, the Go version 1.22 and the make targets"
+        }
+      ]
+    },
+    {
+      "id": "01-REQ-9",
+      "title": "No behaviour beyond the skeleton",
+      "rationale": "Later specs add code; this spec must leave a neutral foundation.",
+      "criteria": [
+        {
+          "id": "01-REQ-9.1",
+          "pattern": "ubiquitous",
+          "system": "go.mod",
+          "action": "contain no `require` entries"
+        },
+        {
+          "id": "01-REQ-9.2",
+          "pattern": "ubiquitous",
+          "system": "repository",
+          "action": "add no top-level directories other than `cmd/` and `internal/`, and leave `LICENSE` unchanged"
+        }
+      ]
+    }
+  ],
+  "execution_paths": [
+    {
+      "id": "01-PATH-1",
+      "title": "A developer verifies the fresh skeleton with make check",
+      "steps": [
+        {
+          "actor": "developer",
+          "action": "clones the repository and runs `make check` with only the Go toolchain installed"
+        },
+        {
+          "actor": "Makefile",
+          "action": "runs fmt, vet, build and test in order against the module declared in go.mod, tolerating the \"matched no packages\" warning"
+        },
+        {
+          "actor": "Makefile",
+          "action": "exits with status 0 and creates no file outside the tree"
+        }
+      ]
+    },
+    {
+      "id": "01-PATH-2",
+      "title": "A developer regenerates package docs",
+      "steps": [
+        {
+          "actor": "developer",
+          "action": "runs `make doc`"
+        },
+        {
+          "actor": "Makefile",
+          "action": "deletes stale files in docs/generated/ and enumerates packages with `go list ./...`"
+        },
+        {
+          "actor": "Makefile",
+          "action": "filters out internal and examples packages and writes `go doc -all` output per remaining package to a `_`-joined .txt file"
+        },
+        {
+          "actor": "Makefile",
+          "action": "leaves docs/generated/ present with .gitkeep and exits with status 0"
+        }
+      ]
+    },
+    {
+      "id": "01-PATH-3",
+      "title": "A developer builds and cleans",
+      "steps": [
+        {
+          "actor": "developer",
+          "action": "runs `make build`, which writes any binaries to bin/"
+        },
+        {
+          "actor": "git",
+          "action": "treats bin/ as ignored, so `git status` lists no build output"
+        },
+        {
+          "actor": "developer",
+          "action": "runs `make clean`"
+        },
+        {
+          "actor": "Makefile",
+          "action": "removes bin/ and exits with status 0, also when bin/ was absent"
+        }
+      ]
+    }
+  ]
+}
